@@ -9,8 +9,22 @@ export const processDeGeExcel = async (file) => {
         await workbook.xlsx.load(buffer);
         const worksheet = workbook.worksheets[0]; // Assume first sheet is the one to use
 
+        // 安全提取 cell 文字的函式，避免 exceljs 遇到 null/error 時的 toString 崩潰
+        const getSafeText = (cell) => {
+            if (!cell || cell.value === null || cell.value === undefined) return "";
+            if (cell.type === ExcelJS.ValueType.Error) return "";
+            if (cell.value && typeof cell.value === 'object' && cell.value.richText) {
+                return cell.value.richText.map(rt => rt.text).join("");
+            }
+            try {
+                return cell.text || String(cell.value);
+            } catch (e) {
+                return "";
+            }
+        };
+
         // 1. 擷取第一列的時間資料
-        let reportTitle = worksheet.getCell('A1').text || worksheet.getCell('B1').text || "";
+        let reportTitle = getSafeText(worksheet.getCell('A1')) || getSafeText(worksheet.getCell('B1')) || "";
         let timeData = ""; // 例如 "114年03月"
         const titleMatch = reportTitle ? reportTitle.match(/(\d{3}年\d{1,2}月)/) : null;
         if (titleMatch) {
@@ -23,10 +37,10 @@ export const processDeGeExcel = async (file) => {
         // 2. 擷取第二列的現場主任姓名
         let managerName = "";
         for (let c = 1; c <= 10; c++) {
-            let val = worksheet.getCell(2, c).text;
+            let val = getSafeText(worksheet.getCell(2, c));
             if (val && val.includes("現場主任")) {
                 if (val === "現場主任：" || val === "現場主任") {
-                    managerName = worksheet.getCell(2, c + 1).text;
+                    managerName = getSafeText(worksheet.getCell(2, c + 1));
                     break;
                 } else {
                     managerName = val.replace("現場主任：", "").replace("現場主任", "").replace(":", "").trim();
@@ -44,10 +58,10 @@ export const processDeGeExcel = async (file) => {
         // 3. 擷取第三列的執行期間
         let periodStr = "";
         for (let c = 1; c <= 10; c++) {
-            let val = worksheet.getCell(3, c).text;
+            let val = getSafeText(worksheet.getCell(3, c));
             if (val && val.includes("執行期間")) {
                 if (val === "執行期間：" || val === "執行期間") {
-                    periodStr = worksheet.getCell(3, c + 1).text;
+                    periodStr = getSafeText(worksheet.getCell(3, c + 1));
                     break;
                 } else {
                     periodStr = val.replace("執行期間：", "").replace("執行期間", "").replace(":", "").trim();
@@ -63,8 +77,9 @@ export const processDeGeExcel = async (file) => {
 
             let rowText = "";
             row.eachCell((cell, colNumber) => {
-                if (colNumber >= 2 && cell.text && cell.text !== "無") {
-                    if (!rowText) rowText = cell.text;
+                const cellText = getSafeText(cell);
+                if (colNumber >= 2 && cellText && cellText !== "無") {
+                    if (!rowText) rowText = cellText;
                 }
             });
 
