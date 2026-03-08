@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+deploy_temp
+gh-pages
 *.local
 
 # Environment Variables
