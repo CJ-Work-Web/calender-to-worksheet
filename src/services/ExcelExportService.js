@@ -231,7 +231,7 @@ const generateManagerSheet = (workbook, templateSheet, managerName, sheetName, d
 export const exportToExcel = async (categorizedData, startDate, endDate, originalMapping) => {
     try {
         // 1. 下載 public/template.xlsx 成為 ArrayBuffer
-        const response = await fetch('/template.xlsx');
+        const response = await fetch('./template.xlsx');
         if (!response.ok) {
             throw new Error(`無法載入範本檔: ${response.statusText}`);
         }
