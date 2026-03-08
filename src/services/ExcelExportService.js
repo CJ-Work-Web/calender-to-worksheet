@@ -335,7 +335,7 @@ export const exportSingleDeGeExcel = async (managerData, managerName, stationsSt
 
         let mStr = "xx";
         let twYear = "xxx";
-        const titleMatch = timeDataTitle.match(/(\d{3})年(\d{1,2})月/);
+        const titleMatch = timeDataTitle ? timeDataTitle.match(/(\d{3})年(\d{1,2})月/) : null;
         if (titleMatch) {
             twYear = titleMatch[1];
             mStr = parseInt(titleMatch[2]).toString();

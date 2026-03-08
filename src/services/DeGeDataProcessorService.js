@@ -12,9 +12,12 @@ export const processDeGeExcel = async (file) => {
         // 1. 擷取第一列的時間資料
         let reportTitle = worksheet.getCell('A1').text || worksheet.getCell('B1').text || "";
         let timeData = ""; // 例如 "114年03月"
-        const titleMatch = reportTitle.match(/(\d{3}年\d{1,2}月)/);
+        const titleMatch = reportTitle ? reportTitle.match(/(\d{3}年\d{1,2}月)/) : null;
         if (titleMatch) {
             timeData = titleMatch[1];
+        } else {
+            // 如果從 A1/B1 找不到時間標題，我們提供一個回退預設值避免後續掛掉
+            timeData = "xxx年xx月";
         }
 
         // 2. 擷取第二列的現場主任姓名
