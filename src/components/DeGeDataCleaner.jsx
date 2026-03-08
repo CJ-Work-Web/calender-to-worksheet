@@ -25,7 +25,7 @@ const DeGeDataCleaner = () => {
             setTimeout(() => setExportSuccess(false), 3000);
         } catch (error) {
             console.error("處理失敗:", error);
-            alert("處理 Excel 發生錯誤，請檢查檔案格式是否正確。");
+            alert(`處理 Excel 發生錯誤：\n${error.message || error}\n請檢查檔案格式是否正確，或將此錯誤訊息截圖回報。`);
         } finally {
             setIsProcessing(false);
         }

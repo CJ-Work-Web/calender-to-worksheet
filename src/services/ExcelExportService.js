@@ -94,7 +94,7 @@ const generateManagerSheet = (workbook, templateSheet, managerName, sheetName, d
             initMonth = parseInt(startDateStr.split('-')[1]).toString();
         }
         let twEndYear = "xxx", endMonth = "xx", endDay = "xx";
-        const startDay = startDateStr?.split('-')[2] ? parseInt(startDateStr.split('-')[2]).toString() : "xx";
+        const startDay = (startDateStr && startDateStr.split('-')[2]) ? parseInt(startDateStr.split('-')[2]).toString() : "xx";
         if (endDateStr) {
             twEndYear = parseInt(endDateStr.split('-')[0]) - 1911;
             endMonth = parseInt(endDateStr.split('-')[1]).toString();
