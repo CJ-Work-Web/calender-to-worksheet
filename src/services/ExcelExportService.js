@@ -27,7 +27,7 @@ const copyRowStyleAndMerge = (worksheet, sourceRowNumber, targetRowNumber, sourc
 /**
  * 生成單一主任的工作表
  */
-const generateManagerSheet = (workbook, templateSheet, managerName, sheetName, data, startDateStr, endDateStr, stationsList) => {
+const generateManagerSheet = (workbook, templateSheet, managerName, sheetName, data, startDateStr, endDateStr, stationsList, customTitle = null, customPeriod = null) => {
     // 複製範本工作表
     const newSheet = workbook.addWorksheet(sheetName);
 
@@ -50,14 +50,18 @@ const generateManagerSheet = (workbook, templateSheet, managerName, sheetName, d
     for (let c = 1; c <= 7; c++) newTitleRow.getCell(c).style = titleRow.getCell(c).style;
     newSheet.mergeCells(`A1:G1`);
 
-    const yearMatch = startDateStr.match(/^(\d{4})/);
-    let twYear = "xxx";
-    let initMonth = "xx";
-    if (yearMatch) {
-        twYear = parseInt(yearMatch[1]) - 1911;
-        initMonth = parseInt(startDateStr.split('-')[1]).toString(); // Remove leading zero
+    if (customTitle) {
+        newTitleRow.getCell(1).value = customTitle;
+    } else {
+        const yearMatch = startDateStr?.match(/^(\d{4})/);
+        let twYear = "xxx";
+        let initMonth = "xx";
+        if (yearMatch) {
+            twYear = parseInt(yearMatch[1]) - 1911;
+            initMonth = parseInt(startDateStr.split('-')[1]).toString(); // Remove leading zero
+        }
+        newTitleRow.getCell(1).value = `${twYear}年${initMonth}月份 工作日誌整體執行情形說明表`;
     }
-    newTitleRow.getCell(1).value = `${twYear}年${initMonth}月份 工作日誌整體執行情形說明表`;
 
     // 2. 負責案場與主任
     const r2 = templateSheet.getRow(2);
@@ -80,14 +84,24 @@ const generateManagerSheet = (workbook, templateSheet, managerName, sheetName, d
     newSheet.mergeCells(`B3:G3`);
     newSheet.getCell('A3').value = "執行期間：";
 
-    let twEndYear = "xxx", endMonth = "xx", endDay = "xx";
-    const startDay = startDateStr.split('-')[2] ? parseInt(startDateStr.split('-')[2]).toString() : "xx";
-    if (endDateStr) {
-        twEndYear = parseInt(endDateStr.split('-')[0]) - 1911;
-        endMonth = parseInt(endDateStr.split('-')[1]).toString();
-        endDay = parseInt(endDateStr.split('-')[2]).toString();
+    if (customPeriod) {
+        newSheet.getCell('B3').value = customPeriod;
+    } else {
+        let twYear = "xxx", initMonth = "xx";
+        const yearMatch = startDateStr?.match(/^(\d{4})/);
+        if (yearMatch) {
+            twYear = parseInt(yearMatch[1]) - 1911;
+            initMonth = parseInt(startDateStr.split('-')[1]).toString();
+        }
+        let twEndYear = "xxx", endMonth = "xx", endDay = "xx";
+        const startDay = startDateStr?.split('-')[2] ? parseInt(startDateStr.split('-')[2]).toString() : "xx";
+        if (endDateStr) {
+            twEndYear = parseInt(endDateStr.split('-')[0]) - 1911;
+            endMonth = parseInt(endDateStr.split('-')[1]).toString();
+            endDay = parseInt(endDateStr.split('-')[2]).toString();
+        }
+        newSheet.getCell('B3').value = `${twYear}年${initMonth}月${startDay}日至${twEndYear}年${endMonth}月${endDay}日`;
     }
-    newSheet.getCell('B3').value = `${twYear}年${initMonth}月${startDay}日至${twEndYear}年${endMonth}月${endDay}日`;
 
 
     // --- 填寫七大分類區塊 ---
@@ -300,6 +314,62 @@ export const exportToExcel = async (categorizedData, startDate, endDate, origina
 
     } catch (error) {
         console.error("Excel 產生失敗:", error);
+        throw error;
+    }
+};
+
+/**
+ * 針對單一主任的「德哥工作日誌整理」匯出為 Excel 檔案
+ */
+export const exportSingleDeGeExcel = async (managerData, managerName, stationsStr, timeDataTitle, periodStr) => {
+    try {
+        const response = await fetch('./template.xlsx');
+        if (!response.ok) {
+            throw new Error(`無法載入範本檔: ${response.statusText}`);
+        }
+        const buffer = await response.arrayBuffer();
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+        const templateSheet = workbook.worksheets[0];
+        const originalSheetIds = workbook.worksheets.map(ws => ws.id);
+
+        let mStr = "xx";
+        let twYear = "xxx";
+        const titleMatch = timeDataTitle.match(/(\d{3})年(\d{1,2})月/);
+        if (titleMatch) {
+            twYear = titleMatch[1];
+            mStr = parseInt(titleMatch[2]).toString();
+        }
+
+        const sheetName = managerName === "未匹配站點" ? "未匹配站點" : `主任工作內容_${managerName}_${mStr}月`;
+
+        const stationsArray = [stationsStr];
+
+        // 傳遞 customTitle: 如果 timeDataTitle 自帶了「工作日誌整體執行情形說明表」，這裡為了符合格式直接組合
+        const customTitle = `${timeDataTitle}份 工作日誌整體執行情形說明表`;
+
+        generateManagerSheet(workbook, templateSheet, managerName, sheetName, managerData, null, null, stationsArray, customTitle, periodStr);
+
+        // 刪除所有原來的範本 Sheets 
+        originalSheetIds.forEach(id => {
+            workbook.removeWorksheet(id);
+        });
+
+        const outBuffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([outBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+        const fileName = `${twYear}年${mStr}月_主任工作日誌_${managerName}.xlsx`;
+
+        // 下載邏輯
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+        console.error("DeGe Excel 產生失敗:", error);
         throw error;
     }
 };
