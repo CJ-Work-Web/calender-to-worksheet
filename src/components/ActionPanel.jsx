@@ -6,7 +6,7 @@ import { exportToExcel } from '../services/ExcelExportService';
 const ActionPanel = ({ eventsData, isProcessing, setIsProcessing }) => {
     const [exportSuccess, setExportSuccess] = useState(false);
 
-    const handleExport = () => {
+    const handleExport = async () => {
         setIsProcessing(true);
         setExportSuccess(false);
 
@@ -23,7 +23,7 @@ const ActionPanel = ({ eventsData, isProcessing, setIsProcessing }) => {
             const endDateInput = document.getElementById('endDate')?.value || new Date().toISOString().split('T')[0];
 
             // 3. 匯出 Excel (使用 ExcelJS 與範本)
-            exportToExcel(groupedData, startDateInput, endDateInput, STATION_MANAGER_MAPPING);
+            await exportToExcel(groupedData, startDateInput, endDateInput, STATION_MANAGER_MAPPING);
 
             setExportSuccess(true);
             setTimeout(() => setExportSuccess(false), 3000); // 3 秒後自動隱藏成功訊息
