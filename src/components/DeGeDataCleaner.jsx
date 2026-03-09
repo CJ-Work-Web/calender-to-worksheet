@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Upload, FileDown, FileSpreadsheet } from 'lucide-react';
 import { processDeGeExcel } from '../services/DeGeDataProcessorService';
 
@@ -7,7 +7,7 @@ const DeGeDataCleaner = ({ file, setFile, onDataProcessed }) => {
     const [exportSuccess, setExportSuccess] = useState(false);
 
     // 自動處理：當檔案選取後立即解析
-    React.useEffect(() => {
+    useEffect(() => {
         const autoProcess = async () => {
             if (!file) return;
             setIsProcessing(true);

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Calendar, FileBarChart } from 'lucide-react'
 import GoogleAuth from './components/GoogleAuth'
 import QueryForm from './components/QueryForm'
@@ -24,7 +24,7 @@ function App() {
   const [excelResult, setExcelResult] = useState(null)
 
   // 自動處理：當行事曆行程更新時立即解析
-  React.useEffect(() => {
+  useEffect(() => {
     if (eventsData.length > 0) {
       const processed = processEvents(eventsData);
       const startDateInput = document.getElementById('startDate')?.value || new Date().toISOString().split('T')[0];
