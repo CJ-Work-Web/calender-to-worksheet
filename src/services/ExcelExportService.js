@@ -280,7 +280,7 @@ export const exportToExcel = async (categorizedData, startDate, endDate, origina
 
             // 產生這個主任專屬的工作表
             // 將 sheetname 改為 "主任工作內容_主任姓名_月份" 的形式
-            let mStr = startDate.split('-')[1]; // 保留原樣或轉數字
+            let mStr = (startDate && startDate.includes('-')) ? startDate.split('-')[1] : (new Date().getMonth() + 1).toString();
             const sheetName = mgr === "未匹配站點" ? "未匹配站點" : `主任工作內容_${mgr}_${parseInt(mStr).toString()}月`;
 
             // 傳遞 mgr 作為真正的 manager 名字
@@ -298,9 +298,13 @@ export const exportToExcel = async (categorizedData, startDate, endDate, origina
 
         // 檔名: "xxx年x月_主任工作日誌"
         let twYear = "xxx", initMonth = "x";
-        if (startDate) {
+        if (startDate && startDate.includes('-')) {
             twYear = parseInt(startDate.split('-')[0]) - 1911;
             initMonth = parseInt(startDate.split('-')[1]).toString(); // 去掉開頭 0
+        } else {
+            const now = new Date();
+            twYear = now.getFullYear() - 1911;
+            initMonth = (now.getMonth() + 1).toString();
         }
         const fileName = `${twYear}年${initMonth}月_主任工作日誌.xlsx`;
 

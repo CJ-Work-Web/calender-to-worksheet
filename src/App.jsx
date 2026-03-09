@@ -69,8 +69,9 @@ function App() {
         end = calendarEnd;
       } else {
         // 只有 Excel
-        start = excelPeriod?.split('至')[0];
-        end = excelPeriod?.split('至')[1];
+        const fallbackDate = new Date().toISOString().split('T')[0];
+        start = excelPeriod?.split('至')[0] || fallbackDate;
+        end = excelPeriod?.split('至')[1] || fallbackDate;
       }
 
       await exportToExcel(merged, start, end, STATION_MANAGER_MAPPING)
