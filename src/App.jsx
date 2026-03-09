@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { Calendar, FileBarChart } from 'lucide-react'
+import { Calendar, Layers, CheckCircle2, Circle, FileBarChart } from 'lucide-react'
 import GoogleAuth from './components/GoogleAuth'
 import QueryForm from './components/QueryForm'
 import ActionPanel from './components/ActionPanel'
 import DeGeDataCleaner from './components/DeGeDataCleaner'
 import { mergeCategorizedData, STATION_MANAGER_MAPPING, processEvents, categorizeByManager } from './services/DataProcessorService'
 import { processDeGeExcel } from './services/DeGeDataProcessorService'
-// import { exportToExcel } from './services/ExcelExportService' // 改為動態引入以優化包體 (P2)
 import { format, startOfMonth, endOfMonth } from 'date-fns'
-import { Layers, CheckCircle2, Circle, FileBarChart } from 'lucide-react'
 
 // 輔助工具：將 YYYY-MM-DD 轉換為 民國年 格式
 const toTWDate = (dateStr) => {
