@@ -3,10 +3,8 @@ import { Search } from 'lucide-react';
 import { fetchEvents } from '../services/GoogleCalendarService';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 
-const QueryForm = ({ calendars, isProcessing, setIsProcessing, setEventsData }) => {
+const QueryForm = ({ calendars, isProcessing, setIsProcessing, setEventsData, startDate, setStartDate, endDate, setEndDate }) => {
     const [selectedCalendar, setSelectedCalendar] = useState('');
-    const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-    const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
     const [errorMsg, setErrorMsg] = useState('');
 
     const handleFetch = async (e) => {

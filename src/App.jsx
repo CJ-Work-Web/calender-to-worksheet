@@ -6,7 +6,8 @@ import ActionPanel from './components/ActionPanel'
 import DeGeDataCleaner from './components/DeGeDataCleaner'
 import { mergeCategorizedData, STATION_MANAGER_MAPPING, processEvents, categorizeByManager } from './services/DataProcessorService'
 import { processDeGeExcel } from './services/DeGeDataProcessorService'
-import { exportToExcel } from './services/ExcelExportService'
+// import { exportToExcel } from './services/ExcelExportService' // 改為動態引入以優化包體 (P2)
+import { format, startOfMonth, endOfMonth } from 'date-fns'
 import { Layers, CheckCircle2, Circle } from 'lucide-react'
 
 function App() {
@@ -20,78 +21,65 @@ function App() {
   const [excelFile, setExcelFile] = useState(null)
 
   // 處理後的快取 (供匯出或合併使用)
-  const [calendarResult, setCalendarResult] = useState(null)
-  const [excelResult, setExcelResult] = useState(null)
+  // 查詢日期狀態 (P2: 移除 document.getElementById)
+  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+
+  // 快取處理過的資料，避免重複解析 (P2)
+  const [processedEventsCache, setProcessedEventsCache] = useState(null);
+  const [excelResult, setExcelResult] = useState(null) // Keep this for DeGeDataCleaner output
 
   // 自動處理：當行事曆行程更新時立即解析
   useEffect(() => {
     if (eventsData.length > 0) {
-      const processed = processEvents(eventsData);
-      const startDateInput = document.getElementById('startDate')?.value || new Date().toISOString().split('T')[0];
-      const endDateInput = document.getElementById('endDate')?.value || new Date().toISOString().split('T')[0];
+      const processed = categorizeByManager(processEvents(eventsData));
+      const startDateInput = startDate;
+      const endDateInput = endDate;
+      const periodStr = `${startDateInput.split('-')[0]}年${startDateInput.split('-')[1]}月${startDateInput.split('-')[2]}日至${endDateInput.split('-')[0]}年${endDateInput.split('-')[1]}月${endDateInput.split('-')[2]}日`;
 
-      setCalendarResult({
-        categorized: categorizeByManager(processed),
+      setProcessedEventsCache({
+        categorized: processed,
         startDate: startDateInput,
-        endDate: endDateInput
+        endDate: endDateInput,
+        periodStr: periodStr
       });
     } else {
-      setCalendarResult(null);
+      setProcessedEventsCache(null);
     }
-  }, [eventsData]);
+  }, [eventsData, startDate, endDate]);
 
   const handleMergedExport = async () => {
     setIsProcessing(true)
     try {
-      // 如果還沒處理過，就在這裡處理
-      let finalCalendar = calendarResult
-      if (!finalCalendar && eventsData.length > 0) {
-        const processed = processEvents(eventsData)
-        finalCalendar = { categorized: categorizeByManager(processed) }
+      // 動態引入服務
+      const { mergeCategorizedData } = await import('./services/DataProcessorService');
+      const { exportToExcel } = await import('./services/ExcelExportService');
+
+      let finalCategorized = {};
+      let finalTitle = "";
+      let finalPeriod = "";
+
+      // 優先使用行事曆的日期與標題，若無則使用 Excel 的
+      if (processedEventsCache) {
+        finalTitle = `${processedEventsCache.startDate.split('-')[0]}年${processedEventsCache.startDate.split('-')[1]}月份 工作日誌整體執行情形說明表`;
+        finalPeriod = processedEventsCache.periodStr;
+      } else if (excelResult) {
+        finalTitle = excelResult.reportTitle;
+        finalPeriod = excelResult.periodStr;
       }
 
-      let finalExcel = excelResult
-      if (!finalExcel && excelFile) {
-        // 需要從 DeGeDataProcessorService 導入 processDeGeExcel
-        // 但為了簡單與解耦，我們讓 handleMergedExport 統一呼叫
-        const result = await processDeGeExcel(excelFile)
-        finalExcel = result
-      }
+      // 合併兩個來源的分類資料
+      finalCategorized = mergeCategorizedData(
+        processedEventsCache ? processedEventsCache.categorized : null,
+        excelResult ? excelResult.categorized : null
+      );
 
-      // 合併資料
-      const merged = mergeCategorizedData(
-        finalCalendar?.categorized,
-        finalExcel?.categorized
-      )
-
-      if (Object.keys(merged).length === 0) {
+      if (Object.keys(finalCategorized).length === 0) {
         alert("目前沒有可匯出的資料！")
         return
       }
 
-      // 決定標頭資訊
-      // 使用者規則：若兩者皆有，以行事曆為準；否則以該頁面資料為準。
-      let start, end;
-      const calendarStart = calendarResult?.startDate || document.getElementById('startDate')?.value;
-      const calendarEnd = calendarResult?.endDate || document.getElementById('endDate')?.value;
-      const excelPeriod = finalExcel?.periodStr; // 例如 "115年02月01日至115年02月28日"
-
-      if (eventsData.length > 0 && excelFile) {
-        // 兩者皆有，以行事曆為準
-        start = calendarStart;
-        end = calendarEnd;
-      } else if (eventsData.length > 0) {
-        // 只有行事曆
-        start = calendarStart;
-        end = calendarEnd;
-      } else {
-        // 只有 Excel
-        const fallbackDate = new Date().toISOString().split('T')[0];
-        start = excelPeriod?.split('至')[0] || fallbackDate;
-        end = excelPeriod?.split('至')[1] || fallbackDate;
-      }
-
-      await exportToExcel(merged, start, end, STATION_MANAGER_MAPPING)
+      await exportToExcel(finalCategorized, finalTitle, finalPeriod, STATION_MANAGER_MAPPING);
       alert("合併匯出成功！")
     } catch (err) {
       console.error("合併匯出失敗:", err)
@@ -100,8 +88,6 @@ function App() {
       setIsProcessing(false)
     }
   }
-
-  const hasAnyData = eventsData.length > 0 || !!excelFile
 
   return (
     <div className="app-container animate-fade-in">
@@ -145,12 +131,16 @@ function App() {
                   isProcessing={isProcessing}
                   setIsProcessing={setIsProcessing}
                   setEventsData={setEventsData}
+                  startDate={startDate}
+                  setStartDate={setStartDate}
+                  endDate={endDate}
+                  setEndDate={setEndDate}
                 />
                 <ActionPanel
                   eventsData={eventsData}
                   isProcessing={isProcessing}
                   setIsProcessing={setIsProcessing}
-                  onDataProcessed={setCalendarResult}
+                  processedEventsCache={processedEventsCache}
                 />
               </div>
             )}
@@ -162,40 +152,34 @@ function App() {
             file={excelFile}
             setFile={setExcelFile}
             onDataProcessed={setExcelResult}
+            excelResult={excelResult}
           />
         )}
       </main>
 
-      {/* 合併匯出控制面板 */}
-      {hasAnyData && (
-        <div className="glass-panel animate-fade-in" style={{ marginTop: '2rem', padding: '1.5rem', border: '1px solid var(--primary-light)', boxShadow: '0 0 20px rgba(99, 102, 241, 0.2)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Layers size={24} color="var(--primary)" />
-                <h3 style={{ margin: 0 }}>合併匯出總預覽 (v2.1)</h3>
+      {/* 合併匯出面板：只要有任一資料載入就顯示 */}
+      {(processedEventsCache || excelResult) && (
+        <div style={{ marginTop: '2rem' }}>
+          <div className="glass-panel" style={{ padding: '2rem', border: '1px solid var(--primary-low)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', color: 'var(--primary)' }}>合併匯出總報表</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                  將包含以下資料：
+                  {processedEventsCache && <span style={{ color: 'var(--success)', marginLeft: '0.5rem' }}>✓ Google 行事曆 ({eventsData.length} 筆)</span>}
+                  {excelResult && <span style={{ color: 'var(--success)', marginLeft: '0.5rem' }}>✓ 德哥 Excel (已載入)</span>}
+                </p>
               </div>
-
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <div className={`badge ${eventsData.length > 0 ? 'badge-success' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: eventsData.length > 0 ? 1 : 0.4 }}>
-                  {eventsData.length > 0 ? <CheckCircle2 size={14} /> : <Circle size={14} />}
-                  行事曆資料 {eventsData.length > 0 ? `已就緒 (${eventsData.length}筆)` : '(待抓取)'}
-                </div>
-                <div className={`badge ${excelFile ? 'badge-success' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: excelFile ? 1 : 0.4 }}>
-                  {excelFile ? <CheckCircle2 size={14} /> : <Circle size={14} />}
-                  德哥 Excel {excelFile ? `已選取 (${excelFile.name})` : '(待上傳)'}
-                </div>
-              </div>
+              <button
+                className="btn"
+                onClick={handleMergedExport}
+                disabled={isProcessing}
+                style={{ padding: '0.8rem 2rem', background: 'linear-gradient(135deg, var(--primary), var(--secondary))' }}
+              >
+                <FileBarChart size={20} />
+                合併下載報表
+              </button>
             </div>
-
-            <button
-              className="btn btn-primary"
-              onClick={handleMergedExport}
-              disabled={isProcessing}
-              style={{ padding: '0.75rem 2.5rem', fontSize: '1.1rem', fontWeight: 'bold' }}
-            >
-              {isProcessing ? <div className="spinner"></div> : '合併匯出總報表'}
-            </button>
           </div>
         </div>
       )}

@@ -1,42 +1,28 @@
-import React, { useState } from 'react';
-import { Download, FileSpreadsheet } from 'lucide-react';
-import { processEvents, categorizeByManager, STATION_MANAGER_MAPPING } from '../services/DataProcessorService';
-import { exportToExcel } from '../services/ExcelExportService';
+import { STATION_MANAGER_MAPPING } from '../services/DataProcessorService';
 
-const ActionPanel = ({ eventsData, isProcessing, setIsProcessing, onDataProcessed }) => {
+const ActionPanel = ({ eventsData, isProcessing, setIsProcessing, processedEventsCache }) => {
     const [exportSuccess, setExportSuccess] = useState(false);
 
     const handleExport = async () => {
+        if (!processedEventsCache) return;
+
         setIsProcessing(true);
         setExportSuccess(false);
 
         try {
-            // 1. 處理所有事件 (清洗、比對)
-            const processed = processEvents(eventsData);
+            const { exportToExcel } = await import('../services/ExcelExportService');
 
-            // 2. 轉換格式與分類排版 (七大類別)
-            const groupedData = categorizeByManager(processed);
+            // 決定報表標題
+            const reportTitle = `${processedEventsCache.startDate.split('-')[0]}年${processedEventsCache.startDate.split('-')[1]}月份 工作日誌整體執行情形說明表`;
 
-            const startDateInput = document.getElementById('startDate')?.value || new Date().toISOString().split('T')[0];
-            const endDateInput = document.getElementById('endDate')?.value || new Date().toISOString().split('T')[0];
-
-            // 告知父元件資料已處理好 (供合併使用)
-            if (onDataProcessed) {
-                onDataProcessed({
-                    categorized: groupedData,
-                    startDate: startDateInput,
-                    endDate: endDateInput
-                });
-            }
-
-            // 3. 匯出 Excel (使用 ExcelJS 與範本)
-            await exportToExcel(groupedData, startDateInput, endDateInput, STATION_MANAGER_MAPPING);
+            // 3. 匯出 Excel (使用已處理好的快取資料 P2)
+            await exportToExcel(processedEventsCache.categorized, reportTitle, processedEventsCache.periodStr, STATION_MANAGER_MAPPING);
 
             setExportSuccess(true);
             setTimeout(() => setExportSuccess(false), 3000);
         } catch (err) {
             console.error("匯出失敗:", err);
-            alert("匯出 Excel 發生錯誤，請查看控制台日誌。");
+            alert("匯出 Excel 發生錯誤");
         } finally {
             setIsProcessing(false);
         }

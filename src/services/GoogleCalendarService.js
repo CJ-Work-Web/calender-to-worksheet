@@ -12,6 +12,8 @@ const SCOPES = "https://www.googleapis.com/auth/calendar.readonly";
 let tokenClient;
 let gapiInited = false;
 let gisInited = false;
+let signInResolver = null;
+let signInRejecter = null;
 
 /**
  * Initializes the GAPI client and the GIS token client.
@@ -41,10 +43,16 @@ export const initGoogleAPI = (onUpdateSigninStatus) => {
                 scope: SCOPES,
                 callback: (resp) => {
                     if (resp.error !== undefined) {
+                        if (signInRejecter) signInRejecter(resp);
                         throw (resp);
                     }
                     console.log("GIS token received");
                     onUpdateSigninStatus(true);
+                    if (signInResolver) {
+                        signInResolver();
+                        signInResolver = null;
+                        signInRejecter = null;
+                    }
                 },
             });
             gisInited = true;
@@ -58,6 +66,11 @@ export const initGoogleAPI = (onUpdateSigninStatus) => {
 
 const checkReady = (onUpdateSigninStatus, resolve) => {
     if (gapiInited && gisInited) {
+        // Check if we already have a token
+        const token = window.gapi.client.getToken();
+        if (token && token.access_token) {
+            onUpdateSigninStatus(true);
+        }
         resolve();
     }
 };
@@ -68,10 +81,13 @@ const checkReady = (onUpdateSigninStatus, resolve) => {
 export const signIn = () => {
     return new Promise((resolve, reject) => {
         try {
+            signInResolver = resolve;
+            signInRejecter = reject;
             // Sometime needs to check if token exists, but requestAccessToken always triggers popup for new token
             tokenClient.requestAccessToken({ prompt: 'consent' });
-            resolve();
         } catch (err) {
+            signInResolver = null;
+            signInRejecter = null;
             reject(err);
         }
     });
@@ -100,18 +116,53 @@ export const fetchCalendars = async () => {
     }
 };
 
+/**
+ * 將本地 Date 物件轉換為含有時區偏移的字串 (RFC3339)
+ * 解決 toISOString() 造成的 UTC 時差問題
+ */
+const formatToLocalISO = (date) => {
+    const tzo = -date.getTimezoneOffset();
+    const dif = tzo >= 0 ? '+' : '-';
+    const pad = (num) => (num < 10 ? '0' : '') + num;
+    
+    return date.getFullYear() +
+        '-' + pad(date.getMonth() + 1) +
+        '-' + pad(date.getDate()) +
+        'T' + pad(date.getHours()) +
+        ':' + pad(date.getMinutes()) +
+        ':' + pad(date.getSeconds()) +
+        dif + pad(Math.floor(Math.abs(tzo) / 60)) +
+        ':' + pad(Math.abs(tzo) % 60);
+};
+
 export const fetchEvents = async (calendarId, timeMin, timeMax) => {
     try {
-        const response = await window.gapi.client.calendar.events.list({
-            calendarId: calendarId,
-            timeMin: new Date(timeMin).toISOString(),
-            timeMax: new Date(timeMax + "T23:59:59").toISOString(),
-            showDeleted: false,
-            singleEvents: true,
-            maxResults: 2500,
-            orderBy: 'startTime',
-        });
-        return response.result.items || [];
+        let allItems = [];
+        let nextPageToken = null;
+
+        // 構建精準的本地查詢範圍
+        const start = new Date(timeMin + "T00:00:00");
+        const end = new Date(timeMax + "T23:59:59");
+
+        do {
+            const response = await window.gapi.client.calendar.events.list({
+                calendarId: calendarId,
+                timeMin: formatToLocalISO(start),
+                timeMax: formatToLocalISO(end),
+                showDeleted: false,
+                singleEvents: true,
+                maxResults: 2500,
+                orderBy: 'startTime',
+                pageToken: nextPageToken || undefined
+            });
+
+            const items = response.result.items || [];
+            allItems = allItems.concat(items);
+            nextPageToken = response.result.nextPageToken;
+
+        } while (nextPageToken);
+
+        return allItems;
     } catch (err) {
         console.error("Error fetching events:", err);
         throw err;

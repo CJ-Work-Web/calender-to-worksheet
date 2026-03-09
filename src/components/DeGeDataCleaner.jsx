@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Upload, FileDown, FileSpreadsheet } from 'lucide-react';
 import { processDeGeExcel } from '../services/DeGeDataProcessorService';
 
-const DeGeDataCleaner = ({ file, setFile, onDataProcessed }) => {
+const DeGeDataCleaner = ({ file, setFile, onDataProcessed, excelResult }) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [exportSuccess, setExportSuccess] = useState(false);
 
@@ -46,7 +46,8 @@ const DeGeDataCleaner = ({ file, setFile, onDataProcessed }) => {
             // 或是更簡單的：UI 上點擊下載，就呼叫目前的 processDeGeExcel (它會 return data)，
             // 然後我們在這裡呼叫 exportSingleDeGeExcel。
 
-            const result = await processDeGeExcel(file);
+            // 優先使用快取的結果 (P2: 避免重複解析)
+            const result = excelResult || await processDeGeExcel(file);
             const { exportSingleDeGeExcel } = await import('../services/ExcelExportService');
             await exportSingleDeGeExcel(result.categorized[result.managerName] || result.categorized["未匹配站點"], result.managerName, result.stationsStr, result.reportTitle, result.periodStr);
 
