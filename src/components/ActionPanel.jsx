@@ -84,7 +84,7 @@ const ActionPanel = ({ eventsData, isProcessing, setIsProcessing, onDataProcesse
                 style={{ width: '100%', padding: '1rem', fontSize: '1.05rem' }}
             >
                 <Download size={20} />
-                {exportSuccess ? '匯出成功！' : '處理並下載報表'}
+                {exportSuccess ? '下載成功！' : '下載報表'}
             </button>
 
             {exportSuccess && (

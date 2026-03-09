@@ -143,6 +143,9 @@ export const processDeGeExcel = async (file) => {
                     cleanText += "。";
                 }
 
+                // 執行特定替換規則：美河市 -> 新店機廠 (以利自動比對)
+                cleanText = cleanText.replace(/美河市/g, "新店機廠");
+
                 // 移除重複或連續的不同標點符號 (，。 或 。， 等)，僅保留最後一個
                 // 匹配兩個以上的標點集合，替換為該集合的最後一個字
                 cleanText = cleanText.replace(/[，。,．\.]{2,}/g, (match) => match.slice(-1));

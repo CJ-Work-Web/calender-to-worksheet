@@ -6,6 +6,26 @@ const DeGeDataCleaner = ({ file, setFile, onDataProcessed }) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [exportSuccess, setExportSuccess] = useState(false);
 
+    // 自動處理：當檔案選取後立即解析
+    React.useEffect(() => {
+        const autoProcess = async () => {
+            if (!file) return;
+            setIsProcessing(true);
+            try {
+                const result = await processDeGeExcel(file);
+                if (onDataProcessed) {
+                    onDataProcessed(result);
+                }
+            } catch (error) {
+                console.error("自動處理失敗:", error);
+                alert(`處理 Excel 發生錯誤：\n${error.message || error}`);
+            } finally {
+                setIsProcessing(false);
+            }
+        };
+        autoProcess();
+    }, [file, onDataProcessed]);
+
     const handleFileChange = (e) => {
         if (e.target.files && e.target.files.length > 0) {
             setFile(e.target.files[0]);
@@ -13,21 +33,28 @@ const DeGeDataCleaner = ({ file, setFile, onDataProcessed }) => {
         }
     };
 
-    const handleProcess = async () => {
-        if (!file) return;
-        setIsProcessing(true);
-        setExportSuccess(false);
+    const handleDownload = async () => {
+        if (!file || isProcessing) return;
 
+        // 此按鈕現在只負責下載功能
+        setIsProcessing(true);
         try {
+            // 重新執行一次解析並下載 (為了獲取 ExcelExportService 需要的參數)
+            // 或是從 App.jsx 傳入處理好的結果來下載。
+            // 為了不破壞現有結構，這裡點擊下載時若已處理好，直接執行 export 單獨匯出邏輯。
+            // 由於 processDeGeExcel 之前被我改成了 return data，我們需要引入導出的功能。
+            // 或是更簡單的：UI 上點擊下載，就呼叫目前的 processDeGeExcel (它會 return data)，
+            // 然後我們在這裡呼叫 exportSingleDeGeExcel。
+
             const result = await processDeGeExcel(file);
-            if (onDataProcessed) {
-                onDataProcessed(result);
-            }
+            const { exportSingleDeGeExcel } = await import('../services/ExcelExportService');
+            await exportSingleDeGeExcel(result.categorized[result.managerName] || result.categorized["未匹配站點"], result.managerName, result.stationsStr, result.reportTitle, result.periodStr);
+
             setExportSuccess(true);
             setTimeout(() => setExportSuccess(false), 3000);
         } catch (error) {
-            console.error("處理失敗:", error);
-            alert(`處理 Excel 發生錯誤：\n${error.message || error}\n請檢查檔案格式是否正確，或將此錯誤訊息截圖回報。`);
+            console.error("下載失敗:", error);
+            alert("下載報表發生錯誤");
         } finally {
             setIsProcessing(false);
         }
@@ -80,7 +107,7 @@ const DeGeDataCleaner = ({ file, setFile, onDataProcessed }) => {
 
             <button
                 className={`btn ${exportSuccess ? 'btn-success' : ''}`}
-                onClick={handleProcess}
+                onClick={handleDownload}
                 disabled={!file || isProcessing}
                 style={{ width: '100%', padding: '1rem', fontSize: '1.05rem' }}
             >
@@ -89,7 +116,7 @@ const DeGeDataCleaner = ({ file, setFile, onDataProcessed }) => {
                 ) : (
                     <>
                         <FileDown size={20} />
-                        {exportSuccess ? '處理並下載成功！' : '處理並下載報表'}
+                        {exportSuccess ? '下載成功！' : '下載報表'}
                     </>
                 )}
             </button>

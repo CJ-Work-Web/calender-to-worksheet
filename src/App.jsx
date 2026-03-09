@@ -23,6 +23,23 @@ function App() {
   const [calendarResult, setCalendarResult] = useState(null)
   const [excelResult, setExcelResult] = useState(null)
 
+  // 自動處理：當行事曆行程更新時立即解析
+  React.useEffect(() => {
+    if (eventsData.length > 0) {
+      const processed = processEvents(eventsData);
+      const startDateInput = document.getElementById('startDate')?.value || new Date().toISOString().split('T')[0];
+      const endDateInput = document.getElementById('endDate')?.value || new Date().toISOString().split('T')[0];
+
+      setCalendarResult({
+        categorized: categorizeByManager(processed),
+        startDate: startDateInput,
+        endDate: endDateInput
+      });
+    } else {
+      setCalendarResult(null);
+    }
+  }, [eventsData]);
+
   const handleMergedExport = async () => {
     setIsProcessing(true)
     try {
