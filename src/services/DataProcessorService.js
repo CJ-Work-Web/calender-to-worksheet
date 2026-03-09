@@ -134,7 +134,7 @@ export const categorizeByManager = (processedData) => {
             groups[mgr][CATEGORIES.INSPECT].push(item);
         } else if (title.includes("點交") || title.includes("公證") || title.includes("簽約") ||
             title.includes("起租") || title.includes("退租") || title.includes("續租") ||
-            title.includes("三方移轉") || title.includes("租賃權移轉")) {
+            title.includes("續約") || title.includes("三方移轉") || title.includes("租賃權移轉")) {
             groups[mgr][CATEGORIES.HANDOVER].push(item);
         } else if (title.includes("例會") || title.includes("區權會") || title.includes("區大") ||
             title.includes("委員會") || title.includes("臨時會") || title.includes("委員推舉") ||

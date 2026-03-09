@@ -25,13 +25,14 @@ export const processDeGeExcel = async (file) => {
 
         // 1. 擷取第一列的時間資料
         let reportTitle = getSafeText(worksheet.getCell('A1')) || getSafeText(worksheet.getCell('B1')) || "";
-        let timeData = ""; // 例如 "114年03月"
-        const titleMatch = reportTitle ? reportTitle.match(/(\d{3}年\d{1,2}月)/) : null;
+        let timeData = "xxx年xx月"; // 預設值
+
+        // 移除空格並嘗試匹配，例如 "115年 2月份" -> "115年2月"
+        const cleanTitleForMatch = reportTitle.replace(/\s+/g, "");
+        const titleMatch = cleanTitleForMatch.match(/(\d{3}年\d{1,2})月/);
+
         if (titleMatch) {
-            timeData = titleMatch[1];
-        } else {
-            // 如果從 A1/B1 找不到時間標題，我們提供一個回退預設值避免後續掛掉
-            timeData = "xxx年xx月";
+            timeData = titleMatch[1] + "月";
         }
 
         // 2. 擷取第二列的現場主任姓名
@@ -92,8 +93,8 @@ export const processDeGeExcel = async (file) => {
                 // 移除空格 (包括全形半形)
                 cleanText = cleanText.replace(/\s+/g, "").replace(/　/g, "");
 
-                // 移除特定文字
-                const wordsToRemove = ["契約外修繕項目", "契約內修繕項目", "屬契約內修繕項目", "屬契約外修繕項目", "支援"];
+                // 移除特定文字 (按照長度降冪排序，確保「屬」字不會遺留)
+                const wordsToRemove = ["屬契約外修繕項目", "屬契約內修繕項目", "契約外修繕項目", "契約內修繕項目", "支援"];
                 wordsToRemove.forEach(w => {
                     cleanText = cleanText.split(w).join("");
                 });
