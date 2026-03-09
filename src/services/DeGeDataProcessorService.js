@@ -94,9 +94,8 @@ export const processDeGeExcel = async (file) => {
 
                 // 移除特定文字 (按照長度降冪排序，確保「屬」與「更新」字不會遺留)
                 const wordsToRemove = [
-                    "屬契約外修繕項目", "屬契約內修繕項目",
-                    "契約外修繕項目", "契約內修繕項目",
-                    "整組更新", "更新", "處理", "支援"
+                    "契約外修繕項目", "契約內修繕項目", "屬契約內修繕項目", "屬契約外修繕項目",
+                    "支援", "更新", "處理", "整組更新", "更換"
                 ];
                 wordsToRemove.forEach(w => {
                     cleanText = cleanText.split(w).join("");

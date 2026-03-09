@@ -68,15 +68,32 @@ export const processEvents = (events) => {
         // 3. C 欄 (站點) 與 主任 判定
         const { matchedStation, matchedManager } = findStationAndManager(cleanTitle);
 
-        // 4. D 欄 (合併)
+        // 4. D 欄 (合併) - 資料清洗規則
         let titleNoUnderscore = cleanTitle.split('_')[0];
-        const isMeeting = titleNoUnderscore.includes("會");
 
+        // 全局刪除文字：更新、更換、整組更新
+        titleNoUnderscore = titleNoUnderscore.replace(/更新|更換|整組更新/g, "");
+
+        // 判定分類以便套用「現勘」邏輯
+        const isMtg = titleNoUnderscore.includes("會") || titleNoUnderscore.includes("委員會") || titleNoUnderscore.includes("管委會");
+        const isInspect = titleNoUnderscore.includes("巡檢");
+        const isHandover = titleNoUnderscore.includes("點交") || titleNoUnderscore.includes("公證") || titleNoUnderscore.includes("簽約") ||
+            titleNoUnderscore.includes("起租") || titleNoUnderscore.includes("退租") || titleNoUnderscore.includes("續租") ||
+            titleNoUnderscore.includes("續約");
+        const isPayment = titleNoUnderscore.includes("催收") || titleNoUnderscore.includes("貼單");
+
+        // 若都不屬於上述，則補上「現勘」 (若無)
         let mergedText = "";
-        if (isMeeting) {
+        if (isMtg) {
             mergedText = `${dateFormatted}，${titleNoUnderscore}，無與機關有關重要議題。`;
         } else {
-            mergedText = `${dateFormatted}，${titleNoUnderscore}。`;
+            // 判斷是否為「修繕維護」類別 (即非巡檢、點交、會議、催收)
+            const isMaintenance = !isInspect && !isHandover && !isPayment;
+            let finalTitle = titleNoUnderscore;
+            if (isMaintenance && !finalTitle.includes("現勘")) {
+                finalTitle = "現勘" + finalTitle;
+            }
+            mergedText = `${dateFormatted}，${finalTitle}。`;
         }
 
         return {
@@ -85,7 +102,7 @@ export const processEvents = (events) => {
             titleCol: cleanTitle,
             stationCol: matchedStation,
             mergedCol: mergedText,
-            isMeeting,
+            isMeeting: isMtg,
             manager: matchedManager
         };
     });
@@ -146,7 +163,7 @@ export const categorizeByManager = (processedData) => {
             title.includes("續約") || title.includes("三方移轉") || title.includes("租賃權移轉")) {
             groups[mgr][CATEGORIES.HANDOVER].push(item);
         } else if (title.includes("例會") || title.includes("區權會") || title.includes("區大") ||
-            title.includes("委員會") || title.includes("臨時會") || title.includes("委員推舉") ||
+            title.includes("委員會") || title.includes("管委會") || title.includes("臨時會") || title.includes("委員推舉") ||
             title.includes("起始會議")) {
             groups[mgr][CATEGORIES.MEETING].push(item);
         } else if (title.includes("催收") || title.includes("貼單")) {
