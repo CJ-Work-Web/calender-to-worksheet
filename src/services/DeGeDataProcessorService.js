@@ -124,8 +124,10 @@ export const processDeGeExcel = async (file) => {
                 const isPayment = ["催收", "貼單"].some(k => cleanText.includes(k));
 
                 if (!isInspect && !isHandover && !isMeeting && !isPayment) {
-                    // 是維護類，在日期逗號後加上「現勘」
-                    cleanText = cleanText.replace(/^(\d{1,2}月\d{1,2}日)，/, "$1，現勘");
+                    // 是維護類，在日期逗號後加上「現勘」 (若無 現勘 或 場勘)
+                    if (!cleanText.includes("現勘") && !cleanText.includes("場勘")) {
+                        cleanText = cleanText.replace(/^(\d{1,2}月\d{1,2}日)，/, "$1，現勘");
+                    }
                 }
 
                 // 會議行程處理與結尾句號處理

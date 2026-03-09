@@ -90,7 +90,7 @@ export const processEvents = (events) => {
             // 判斷是否為「修繕維護」類別 (即非巡檢、點交、會議、催收)
             const isMaintenance = !isInspect && !isHandover && !isPayment;
             let finalTitle = titleNoUnderscore;
-            if (isMaintenance && !finalTitle.includes("現勘")) {
+            if (isMaintenance && !finalTitle.includes("現勘") && !finalTitle.includes("場勘")) {
                 finalTitle = "現勘" + finalTitle;
             }
             mergedText = `${dateFormatted}，${finalTitle}。`;
