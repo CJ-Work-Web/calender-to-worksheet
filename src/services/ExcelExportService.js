@@ -238,11 +238,11 @@ const generateManagerSheet = (workbook, templateSheet, managerName, sheetName, d
 /**
  * 匯出為 Excel 檔案
  * @param {Object} categorizedData - 經 DataProcessorService 分類後的資料 (7大類形式)
- * @param {string} startDate - YYYY-MM-DD
- * @param {string} endDate - YYYY-MM-DD
+ * @param {string} title - 報表標題 (例如 "115年03月份 ...")
+ * @param {string} period - 執行期間 (例如 "115年03月01日至...")
  * @param {Array} originalMapping - STATION_MANAGER_MAPPING 清冊
  */
-export const exportToExcel = async (categorizedData, startDate, endDate, originalMapping) => {
+export const exportToExcel = async (categorizedData, title, period, originalMapping) => {
     try {
         // 1. 下載 public/template.xlsx 成為 ArrayBuffer
         const response = await fetch('./template.xlsx');
@@ -280,11 +280,19 @@ export const exportToExcel = async (categorizedData, startDate, endDate, origina
 
             // 產生這個主任專屬的工作表
             // 將 sheetname 改為 "主任工作內容_主任姓名_月份" 的形式
-            let mStr = (startDate && startDate.includes('-')) ? startDate.split('-')[1] : (new Date().getMonth() + 1).toString();
-            const sheetName = mgr === "未匹配站點" ? "未匹配站點" : `主任工作內容_${mgr}_${parseInt(mStr).toString()}月`;
+            // 從 title 中嘗試擷取月份，例如 "115年03月份..."
+            let monthStr = "xx";
+            const monthMatch = title?.match(/(\d{1,2})月份/);
+            if (monthMatch) {
+                monthStr = parseInt(monthMatch[1]).toString();
+            } else {
+                monthStr = (new Date().getMonth() + 1).toString();
+            }
+
+            const sheetName = mgr === "未匹配站點" ? "未匹配站點" : `主任工作內容_${mgr}_${monthStr}月`;
 
             // 傳遞 mgr 作為真正的 manager 名字
-            generateManagerSheet(workbook, templateSheet, mgr, sheetName, categorizedData[mgr], startDate, endDate, stationsForMgr);
+            generateManagerSheet(workbook, templateSheet, mgr, sheetName, categorizedData[mgr], null, null, stationsForMgr, title, period);
         }
 
         // 4. 刪除所有原來的範本 Sheets (例如 114.07, 114.08 這些隱藏的)
@@ -298,9 +306,10 @@ export const exportToExcel = async (categorizedData, startDate, endDate, origina
 
         // 檔名: "xxx年x月_主任工作日誌"
         let twYear = "xxx", initMonth = "x";
-        if (startDate && startDate.includes('-')) {
-            twYear = parseInt(startDate.split('-')[0]) - 1911;
-            initMonth = parseInt(startDate.split('-')[1]).toString(); // 去掉開頭 0
+        const titleMatch = title?.match(/(\d{3})年(\d{1,2})月份/);
+        if (titleMatch) {
+            twYear = titleMatch[1];
+            initMonth = parseInt(titleMatch[2]).toString();
         } else {
             const now = new Date();
             twYear = now.getFullYear() - 1911;
