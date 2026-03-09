@@ -51,6 +51,16 @@ export const findStationAndManager = (title) => {
 };
 
 /**
+ * 定義各大類別的關鍵字
+ */
+export const CATEGORY_KEYWORDS = {
+    INSPECT: ["巡檢"],
+    HANDOVER: ["點交", "公證", "簽約", "起租", "退租", "續租", "續約", "三方移轉", "租賃權移轉"],
+    MEETING: ["例會", "區權會", "區大", "委員會", "管委會", "臨時會", "委員推舉", "起始會議"],
+    PAYMENT: ["催收", "貼單"]
+};
+
+/**
  * 處理原始事件資料
  */
 export const processEvents = (events) => {
@@ -74,18 +84,18 @@ export const processEvents = (events) => {
         // 全局刪除文字：更新、更換、整組更新
         titleNoUnderscore = titleNoUnderscore.replace(/更新|更換|整組更新/g, "");
 
-        // 判定分類以便套用「現勘」邏輯
-        const isMtg = titleNoUnderscore.includes("會") || titleNoUnderscore.includes("委員會") || titleNoUnderscore.includes("管委會");
-        const isInspect = titleNoUnderscore.includes("巡檢");
-        const isHandover = titleNoUnderscore.includes("點交") || titleNoUnderscore.includes("公證") || titleNoUnderscore.includes("簽約") ||
-            titleNoUnderscore.includes("起租") || titleNoUnderscore.includes("退租") || titleNoUnderscore.includes("續租") ||
-            titleNoUnderscore.includes("續約");
-        const isPayment = titleNoUnderscore.includes("催收") || titleNoUnderscore.includes("貼單");
+        // 使用全標題判定分類以免套用「現勘」邏輯 (避免底線後的關鍵字被漏掉)
+        const isMtg = CATEGORY_KEYWORDS.MEETING.some(k => cleanTitle.includes(k));
+        const isInspect = CATEGORY_KEYWORDS.INSPECT.some(k => cleanTitle.includes(k));
+        const isHandover = CATEGORY_KEYWORDS.HANDOVER.some(k => cleanTitle.includes(k));
+        const isPayment = CATEGORY_KEYWORDS.PAYMENT.some(k => cleanTitle.includes(k));
 
         // 若都不屬於上述，則補上「現勘」 (若無)
         let mergedText = "";
         if (isMtg) {
-            mergedText = `${dateFormatted}，${titleNoUnderscore}，無與機關有關重要議題。`;
+            // 會議補上結尾句型
+            let meetingTitle = titleNoUnderscore;
+            mergedText = `${dateFormatted}，${meetingTitle}，無與機關有關重要議題。`;
         } else {
             // 判斷是否為「修繕維護」類別 (即非巡檢、點交、會議、催收)
             const isMaintenance = !isInspect && !isHandover && !isPayment;
@@ -156,17 +166,13 @@ export const categorizeByManager = (processedData) => {
         const title = item.titleCol;
 
         // 2. 關鍵字分類邏輯
-        if (title.includes("巡檢")) {
+        if (CATEGORY_KEYWORDS.INSPECT.some(k => title.includes(k))) {
             groups[mgr][CATEGORIES.INSPECT].push(item);
-        } else if (title.includes("點交") || title.includes("公證") || title.includes("簽約") ||
-            title.includes("起租") || title.includes("退租") || title.includes("續租") ||
-            title.includes("續約") || title.includes("三方移轉") || title.includes("租賃權移轉")) {
+        } else if (CATEGORY_KEYWORDS.HANDOVER.some(k => title.includes(k))) {
             groups[mgr][CATEGORIES.HANDOVER].push(item);
-        } else if (title.includes("例會") || title.includes("區權會") || title.includes("區大") ||
-            title.includes("委員會") || title.includes("管委會") || title.includes("臨時會") || title.includes("委員推舉") ||
-            title.includes("起始會議")) {
+        } else if (CATEGORY_KEYWORDS.MEETING.some(k => title.includes(k))) {
             groups[mgr][CATEGORIES.MEETING].push(item);
-        } else if (title.includes("催收") || title.includes("貼單")) {
+        } else if (CATEGORY_KEYWORDS.PAYMENT.some(k => title.includes(k))) {
             groups[mgr][CATEGORIES.PAYMENT].push(item);
         } else {
             // 無匹配關鍵字者，歸入修繕

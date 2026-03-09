@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import { categorizeByManager, STATION_MANAGER_MAPPING, findStationAndManager } from './DataProcessorService';
+import { categorizeByManager, STATION_MANAGER_MAPPING, findStationAndManager, CATEGORY_KEYWORDS } from './DataProcessorService';
 
 export const processDeGeExcel = async (file) => {
     try {
@@ -117,11 +117,11 @@ export const processDeGeExcel = async (file) => {
                 }
 
                 // [新增] 針對修繕行程補上「現勘」
-                // 判斷邏輯需與 DataProcessorService 一致
-                const isInspect = cleanText.includes("巡檢");
-                const isHandover = ["點交", "公證", "簽約", "起租", "退租", "續租", "續約", "三方移轉", "租賃權移轉"].some(k => cleanText.includes(k));
-                const isMeeting = ["例會", "區權會", "區大", "委員會", "臨時會", "委員推舉", "起始會議"].some(k => cleanText.includes(k));
-                const isPayment = ["催收", "貼單"].some(k => cleanText.includes(k));
+                // 判定邏輯需與 DataProcessorService 一致
+                const isInspect = CATEGORY_KEYWORDS.INSPECT.some(k => cleanText.includes(k));
+                const isHandover = CATEGORY_KEYWORDS.HANDOVER.some(k => cleanText.includes(k));
+                const isMeeting = CATEGORY_KEYWORDS.MEETING.some(k => cleanText.includes(k));
+                const isPayment = CATEGORY_KEYWORDS.PAYMENT.some(k => cleanText.includes(k));
 
                 if (!isInspect && !isHandover && !isMeeting && !isPayment) {
                     // 是維護類，在日期逗號後加上「現勘」 (若無 現勘 或 場勘)
