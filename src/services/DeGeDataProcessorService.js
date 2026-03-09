@@ -93,8 +93,12 @@ export const processDeGeExcel = async (file) => {
                 // 移除空格 (包括全形半形)
                 cleanText = cleanText.replace(/\s+/g, "").replace(/　/g, "");
 
-                // 移除特定文字 (按照長度降冪排序，確保「屬」字不會遺留)
-                const wordsToRemove = ["屬契約外修繕項目", "屬契約內修繕項目", "契約外修繕項目", "契約內修繕項目", "支援"];
+                // 移除特定文字 (按照長度降冪排序，確保「屬」與「更新」字不會遺留)
+                const wordsToRemove = [
+                    "屬契約外修繕項目", "屬契約內修繕項目",
+                    "契約外修繕項目", "契約內修繕項目",
+                    "整組更新", "更新", "處理", "支援"
+                ];
                 wordsToRemove.forEach(w => {
                     cleanText = cleanText.split(w).join("");
                 });
@@ -114,6 +118,18 @@ export const processDeGeExcel = async (file) => {
                     cleanText = datePart + restPart;
                 }
 
+                // [新增] 針對修繕行程補上「現勘」
+                // 判斷邏輯需與 DataProcessorService 一致
+                const isInspect = cleanText.includes("巡檢");
+                const isHandover = ["點交", "公證", "簽約", "起租", "退租", "續租", "續約", "三方移轉", "租賃權移轉"].some(k => cleanText.includes(k));
+                const isMeeting = ["例會", "區權會", "區大", "委員會", "臨時會", "委員推舉", "起始會議"].some(k => cleanText.includes(k));
+                const isPayment = ["催收", "貼單"].some(k => cleanText.includes(k));
+
+                if (!isInspect && !isHandover && !isMeeting && !isPayment) {
+                    // 是維護類，在日期逗號後加上「現勘」
+                    cleanText = cleanText.replace(/^(\d{1,2}月\d{1,2}日)，/, "$1，現勘");
+                }
+
                 // 會議行程處理與結尾句號處理
                 // 先把重複的句號清掉，避免影響判斷
                 cleanText = cleanText.replace(/[。\.]$/, '');
@@ -128,8 +144,9 @@ export const processDeGeExcel = async (file) => {
                     cleanText += "。";
                 }
 
-                // 移除重複標點符號 (，， 等)
-                cleanText = cleanText.replace(/，，+/g, "，").replace(/。。+/g, "。");
+                // 移除重複或連續的不同標點符號 (，。 或 。， 等)，僅保留最後一個
+                // 匹配兩個以上的標點集合，替換為該集合的最後一個字
+                cleanText = cleanText.replace(/[，。,．\.]{2,}/g, (match) => match.slice(-1));
 
                 // 為了 categorizeByManager 能正常運作，提供假的 sortDate，以避免排序錯亂
                 let sortDate = 0;
