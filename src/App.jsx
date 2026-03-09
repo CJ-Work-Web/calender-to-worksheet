@@ -53,8 +53,25 @@ function App() {
       }
 
       // 決定標頭資訊
-      const start = finalExcel?.periodStr?.split('至')[0] || calendarResult?.startDate || document.getElementById('startDate')?.value || new Date().toISOString().split('T')[0]
-      const end = finalExcel?.periodStr?.split('至')[1] || calendarResult?.endDate || document.getElementById('endDate')?.value || new Date().toISOString().split('T')[0]
+      // 使用者規則：若兩者皆有，以行事曆為準；否則以該頁面資料為準。
+      let start, end;
+      const calendarStart = calendarResult?.startDate || document.getElementById('startDate')?.value;
+      const calendarEnd = calendarResult?.endDate || document.getElementById('endDate')?.value;
+      const excelPeriod = finalExcel?.periodStr; // 例如 "115年02月01日至115年02月28日"
+
+      if (eventsData.length > 0 && excelFile) {
+        // 兩者皆有，以行事曆為準
+        start = calendarStart;
+        end = calendarEnd;
+      } else if (eventsData.length > 0) {
+        // 只有行事曆
+        start = calendarStart;
+        end = calendarEnd;
+      } else {
+        // 只有 Excel
+        start = excelPeriod?.split('至')[0];
+        end = excelPeriod?.split('至')[1];
+      }
 
       await exportToExcel(merged, start, end, STATION_MANAGER_MAPPING)
       alert("合併匯出成功！")
