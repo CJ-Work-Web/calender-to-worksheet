@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { Upload, FileDown, FileSpreadsheet } from 'lucide-react';
 import { processDeGeExcel } from '../services/DeGeDataProcessorService';
 
-const DeGeDataCleaner = ({ onDataProcessed }) => {
-    const [file, setFile] = useState(null);
+const DeGeDataCleaner = ({ file, setFile, onDataProcessed }) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [exportSuccess, setExportSuccess] = useState(false);
 

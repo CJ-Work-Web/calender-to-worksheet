@@ -4,9 +4,10 @@ import GoogleAuth from './components/GoogleAuth'
 import QueryForm from './components/QueryForm'
 import ActionPanel from './components/ActionPanel'
 import DeGeDataCleaner from './components/DeGeDataCleaner'
-import { mergeCategorizedData, STATION_MANAGER_MAPPING } from './services/DataProcessorService'
+import { mergeCategorizedData, STATION_MANAGER_MAPPING, processEvents, categorizeByManager } from './services/DataProcessorService'
+import { processDeGeExcel } from './services/DeGeDataProcessorService'
 import { exportToExcel } from './services/ExcelExportService'
-import { Layers, CheckCircle2 } from 'lucide-react'
+import { Layers, CheckCircle2, Circle } from 'lucide-react'
 
 function App() {
   const [activeTab, setActiveTab] = useState('calendar') // 'calendar' or 'excel'
@@ -15,35 +16,57 @@ function App() {
   const [eventsData, setEventsData] = useState([])
   const [calendars, setCalendars] = useState([])
 
-  // 新增：合併資料狀態
+  // 新增：雙來源資料狀態
+  const [excelFile, setExcelFile] = useState(null)
+
+  // 處理後的快取 (供匯出或合併使用)
   const [calendarResult, setCalendarResult] = useState(null)
   const [excelResult, setExcelResult] = useState(null)
 
   const handleMergedExport = async () => {
     setIsProcessing(true)
     try {
+      // 如果還沒處理過，就在這裡處理
+      let finalCalendar = calendarResult
+      if (!finalCalendar && eventsData.length > 0) {
+        const processed = processEvents(eventsData)
+        finalCalendar = { categorized: categorizeByManager(processed) }
+      }
+
+      let finalExcel = excelResult
+      if (!finalExcel && excelFile) {
+        // 需要從 DeGeDataProcessorService 導入 processDeGeExcel
+        // 但為了簡單與解耦，我們讓 handleMergedExport 統一呼叫
+        const result = await processDeGeExcel(excelFile)
+        finalExcel = result
+      }
+
       // 合併資料
       const merged = mergeCategorizedData(
-        calendarResult?.categorized,
-        excelResult?.categorized
+        finalCalendar?.categorized,
+        finalExcel?.categorized
       )
 
+      if (Object.keys(merged).length === 0) {
+        alert("目前沒有可匯出的資料！")
+        return
+      }
+
       // 決定標頭資訊
-      // 優先使用 Excel 提供的精密期間，若無則用行事曆日期
-      const start = excelResult?.periodStr?.split('至')[0] || calendarResult?.startDate || new Date().toISOString().split('T')[0]
-      const end = excelResult?.periodStr?.split('至')[1] || calendarResult?.endDate || new Date().toISOString().split('T')[0]
+      const start = finalExcel?.periodStr?.split('至')[0] || calendarResult?.startDate || document.getElementById('startDate')?.value || new Date().toISOString().split('T')[0]
+      const end = finalExcel?.periodStr?.split('至')[1] || calendarResult?.endDate || document.getElementById('endDate')?.value || new Date().toISOString().split('T')[0]
 
       await exportToExcel(merged, start, end, STATION_MANAGER_MAPPING)
       alert("合併匯出成功！")
     } catch (err) {
       console.error("合併匯出失敗:", err)
-      alert("合併匯出發生錯誤")
+      alert("合併匯出發生錯誤：" + err.message)
     } finally {
       setIsProcessing(false)
     }
   }
 
-  const hasAnyData = !!(calendarResult || excelResult)
+  const hasAnyData = eventsData.length > 0 || !!excelFile
 
   return (
     <div className="app-container animate-fade-in">
@@ -100,31 +123,33 @@ function App() {
         )}
 
         {activeTab === 'excel' && (
-          <DeGeDataCleaner onDataProcessed={setExcelResult} />
+          <DeGeDataCleaner
+            file={excelFile}
+            setFile={setExcelFile}
+            onDataProcessed={setExcelResult}
+          />
         )}
       </main>
 
       {/* 合併匯出控制面板 */}
       {hasAnyData && (
-        <div className="glass-panel animate-fade-in" style={{ marginTop: '2rem', padding: '1.5rem', border: '1px solid var(--primary-light)' }}>
+        <div className="glass-panel animate-fade-in" style={{ marginTop: '2rem', padding: '1.5rem', border: '1px solid var(--primary-light)', boxShadow: '0 0 20px rgba(99, 102, 241, 0.2)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Layers size={24} color="var(--primary)" />
-                <h3 style={{ margin: 0 }}>資料合併預覽</h3>
+                <h3 style={{ margin: 0 }}>合併匯出總預覽 (v2.1)</h3>
               </div>
 
               <div style={{ display: 'flex', gap: '1rem' }}>
-                {calendarResult && (
-                  <div className="badge badge-success" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <CheckCircle2 size={14} /> 行事曆資料已就緒
-                  </div>
-                )}
-                {excelResult && (
-                  <div className="badge badge-success" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <CheckCircle2 size={14} /> 德哥 Excel 已就緒
-                  </div>
-                )}
+                <div className={`badge ${eventsData.length > 0 ? 'badge-success' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: eventsData.length > 0 ? 1 : 0.4 }}>
+                  {eventsData.length > 0 ? <CheckCircle2 size={14} /> : <Circle size={14} />}
+                  行事曆資料 {eventsData.length > 0 ? `已就緒 (${eventsData.length}筆)` : '(待抓取)'}
+                </div>
+                <div className={`badge ${excelFile ? 'badge-success' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: excelFile ? 1 : 0.4 }}>
+                  {excelFile ? <CheckCircle2 size={14} /> : <Circle size={14} />}
+                  德哥 Excel {excelFile ? `已選取 (${excelFile.name})` : '(待上傳)'}
+                </div>
               </div>
             </div>
 
@@ -132,7 +157,7 @@ function App() {
               className="btn btn-primary"
               onClick={handleMergedExport}
               disabled={isProcessing}
-              style={{ padding: '0.75rem 2rem', fontSize: '1.1rem' }}
+              style={{ padding: '0.75rem 2.5rem', fontSize: '1.1rem', fontWeight: 'bold' }}
             >
               {isProcessing ? <div className="spinner"></div> : '合併匯出總報表'}
             </button>
