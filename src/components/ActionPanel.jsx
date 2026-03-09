@@ -2,6 +2,12 @@ import React, { useState } from 'react';
 import { Download, FileSpreadsheet } from 'lucide-react';
 import { STATION_MANAGER_MAPPING } from '../services/DataProcessorService';
 
+const toTWMonth = (dateStr) => {
+    if (!dateStr || !dateStr.includes('-')) return "xxx年xx月";
+    const [y, m] = dateStr.split('-');
+    return `${parseInt(y) - 1911}年${parseInt(m)}月`;
+};
+
 const ActionPanel = ({ eventsData, isProcessing, setIsProcessing, processedEventsCache }) => {
     const [exportSuccess, setExportSuccess] = useState(false);
 
@@ -14,8 +20,8 @@ const ActionPanel = ({ eventsData, isProcessing, setIsProcessing, processedEvent
         try {
             const { exportToExcel } = await import('../services/ExcelExportService');
 
-            // 決定報表標題
-            const reportTitle = `${processedEventsCache.startDate.split('-')[0]}年${processedEventsCache.startDate.split('-')[1]}月份 工作日誌整體執行情形說明表`;
+            // 決定報表標題 (民國年 P1)
+            const reportTitle = `${toTWMonth(processedEventsCache.startDate)}份 工作日誌整體執行情形說明表`;
 
             // 3. 匯出 Excel (使用已處理好的快取資料 P2)
             await exportToExcel(processedEventsCache.categorized, reportTitle, processedEventsCache.periodStr, STATION_MANAGER_MAPPING);

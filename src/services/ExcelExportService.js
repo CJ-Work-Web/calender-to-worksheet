@@ -50,7 +50,7 @@ const generateManagerSheet = (workbook, templateSheet, managerName, sheetName, d
     for (let c = 1; c <= 7; c++) newTitleRow.getCell(c).style = titleRow.getCell(c).style;
     newSheet.mergeCells(`A1:G1`);
 
-    if (customTitle) {
+    if (customTitle !== null && customTitle !== undefined && customTitle !== "") {
         newTitleRow.getCell(1).value = customTitle;
     } else {
         const yearMatch = startDateStr?.match(/^(\d{4})/);
@@ -84,7 +84,7 @@ const generateManagerSheet = (workbook, templateSheet, managerName, sheetName, d
     newSheet.mergeCells(`B3:G3`);
     newSheet.getCell('A3').value = "執行期間：";
 
-    if (customPeriod) {
+    if (customPeriod !== null && customPeriod !== undefined && customPeriod !== "") {
         newSheet.getCell('B3').value = customPeriod;
     } else {
         let twYear = "xxx", initMonth = "xx";

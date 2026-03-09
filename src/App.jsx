@@ -8,7 +8,20 @@ import { mergeCategorizedData, STATION_MANAGER_MAPPING, processEvents, categoriz
 import { processDeGeExcel } from './services/DeGeDataProcessorService'
 // import { exportToExcel } from './services/ExcelExportService' // 改為動態引入以優化包體 (P2)
 import { format, startOfMonth, endOfMonth } from 'date-fns'
-import { Layers, CheckCircle2, Circle } from 'lucide-react'
+import { Layers, CheckCircle2, Circle, FileBarChart } from 'lucide-react'
+
+// 輔助工具：將 YYYY-MM-DD 轉換為 民國年 格式
+const toTWDate = (dateStr) => {
+  if (!dateStr || !dateStr.includes('-')) return "xxx年xx月xx日";
+  const [y, m, d] = dateStr.split('-');
+  return `${parseInt(y) - 1911}年${parseInt(m)}月${parseInt(d)}日`;
+};
+
+const toTWMonth = (dateStr) => {
+  if (!dateStr || !dateStr.includes('-')) return "xxx年xx月";
+  const [y, m] = dateStr.split('-');
+  return `${parseInt(y) - 1911}年${parseInt(m)}月`;
+};
 
 function App() {
   const [activeTab, setActiveTab] = useState('calendar') // 'calendar' or 'excel'
@@ -35,7 +48,8 @@ function App() {
       const processed = categorizeByManager(processEvents(eventsData));
       const startDateInput = startDate;
       const endDateInput = endDate;
-      const periodStr = `${startDateInput.split('-')[0]}年${startDateInput.split('-')[1]}月${startDateInput.split('-')[2]}日至${endDateInput.split('-')[0]}年${endDateInput.split('-')[1]}月${endDateInput.split('-')[2]}日`;
+      // 構建民國年期間字串
+      const periodStr = `${toTWDate(startDateInput)}至${toTWDate(endDateInput)}`;
 
       setProcessedEventsCache({
         categorized: processed,
@@ -61,7 +75,7 @@ function App() {
 
       // 優先使用行事曆的日期與標題，若無則使用 Excel 的
       if (processedEventsCache) {
-        finalTitle = `${processedEventsCache.startDate.split('-')[0]}年${processedEventsCache.startDate.split('-')[1]}月份 工作日誌整體執行情形說明表`;
+        finalTitle = `${toTWMonth(processedEventsCache.startDate)}份 工作日誌整體執行情形說明表`;
         finalPeriod = processedEventsCache.periodStr;
       } else if (excelResult) {
         finalTitle = excelResult.reportTitle;
