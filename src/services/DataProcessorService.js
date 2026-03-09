@@ -23,18 +23,37 @@ export const STATION_MANAGER_MAPPING = [
 ];
 
 /**
- * 處理原始事件資料
+ * 在標題中尋找對應的站點與主任
  */
-export const processEvents = (events) => {
+export const findStationAndManager = (title) => {
     // 為了精準匹配，先處理清冊：提取「核心站名」(去括號、去"站"字)，並依長度降冪排序
     const sortedMapping = [...STATION_MANAGER_MAPPING]
         .map(item => ({
             ...item,
-            // 例如 "台電大樓站(交13)" -> "台電大樓"
             coreName: item.station.split('(')[0].replace(/站$/, '')
         }))
         .sort((a, b) => b.coreName.length - a.coreName.length);
 
+    let matchedStation = "";
+    let matchedManager = "未匹配站點";
+
+    const cleanTitle = (title || "").replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F]/g, '');
+
+    for (const item of sortedMapping) {
+        if (cleanTitle.includes(item.coreName)) {
+            matchedStation = item.station;
+            matchedManager = item.manager;
+            break;
+        }
+    }
+
+    return { matchedStation, matchedManager };
+};
+
+/**
+ * 處理原始事件資料
+ */
+export const processEvents = (events) => {
     return events.map(event => {
         // 1. A 欄 (日期)
         let dateStr = event.start.dateTime || event.start.date;
@@ -47,17 +66,7 @@ export const processEvents = (events) => {
         const cleanTitle = rawTitle.replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F]/g, '');
 
         // 3. C 欄 (站點) 與 主任 判定
-        let matchedStation = "";
-        let matchedManager = "未匹配站點";
-
-        for (const item of sortedMapping) {
-            // 只要標題中包含核心站名 (例如 "古亭"、"台電大樓") 就算匹配
-            if (cleanTitle.includes(item.coreName)) {
-                matchedStation = item.station;
-                matchedManager = item.manager;
-                break;
-            }
-        }
+        const { matchedStation, matchedManager } = findStationAndManager(cleanTitle);
 
         // 4. D 欄 (合併)
         let titleNoUnderscore = cleanTitle.split('_')[0];
@@ -157,4 +166,39 @@ export const categorizeByManager = (processedData) => {
     });
 
     return groups;
+};
+
+/**
+ * 合併多個已經分類好的主任資料集
+ */
+export const mergeCategorizedData = (...dataSets) => {
+    const merged = {};
+
+    dataSets.forEach(dataSet => {
+        if (!dataSet) return;
+
+        Object.keys(dataSet).forEach(mgr => {
+            if (!merged[mgr]) {
+                merged[mgr] = {};
+                Object.values(CATEGORIES).forEach(cat => {
+                    merged[mgr][cat] = [];
+                });
+            }
+
+            Object.values(CATEGORIES).forEach(cat => {
+                if (dataSet[mgr] && dataSet[mgr][cat]) {
+                    merged[mgr][cat] = [...merged[mgr][cat], ...dataSet[mgr][cat]];
+                }
+            });
+        });
+    });
+
+    // 重新排序合併後的資料
+    Object.keys(merged).forEach(mgr => {
+        Object.values(CATEGORIES).forEach(cat => {
+            merged[mgr][cat].sort((a, b) => a.sortDate - b.sortDate);
+        });
+    });
+
+    return merged;
 };

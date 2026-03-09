@@ -1,6 +1,5 @@
 import ExcelJS from 'exceljs';
-import { categorizeByManager, STATION_MANAGER_MAPPING } from './DataProcessorService';
-import { exportSingleDeGeExcel } from './ExcelExportService';
+import { categorizeByManager, STATION_MANAGER_MAPPING, findStationAndManager } from './DataProcessorService';
 
 export const processDeGeExcel = async (file) => {
     try {
@@ -51,7 +50,7 @@ export const processDeGeExcel = async (file) => {
         }
         if (!managerName) managerName = "未知主任";
 
-        // 對應負責案場
+        // 對應負責案場 (這部分給傳統單獨匯出用，合併匯出時開發者可自由組合)
         let matchingStations = STATION_MANAGER_MAPPING.filter(m => m.manager === managerName).map(m => m.station);
         let stationsList = [...new Set(matchingStations)];
         let stationsStr = stationsList.length > 0 ? stationsList.join("、") : "無";
@@ -148,7 +147,7 @@ export const processDeGeExcel = async (file) => {
                 // 匹配兩個以上的標點集合，替換為該集合的最後一個字
                 cleanText = cleanText.replace(/[，。,．\.]{2,}/g, (match) => match.slice(-1));
 
-                // 為了 categorizeByManager 能正常運作，提供假的 sortDate，以避免排序錯亂
+                // 為了串接合併與排序，計算 sortDate
                 let sortDate = 0;
                 let mmMatch = cleanText.match(/^(\d{1,2})月(\d{1,2})日/);
                 if (mmMatch) {
@@ -157,14 +156,17 @@ export const processDeGeExcel = async (file) => {
                     sortDate = d.getTime();
                 }
 
+                // 這裡我們不再只掛在「檔案主任」名下，而是嘗試匹配站點
+                const { matchedStation, matchedManager } = findStationAndManager(cleanText);
+
                 events.push({
                     sortDate: sortDate,
                     dateCol: mmMatch ? mmMatch[0] : "",
                     titleCol: cleanText,
-                    stationCol: "", // 不顯示
+                    stationCol: matchedStation,
                     mergedCol: cleanText,
                     isMeeting: cleanText.includes("會"),
-                    manager: managerName
+                    manager: matchedManager !== "未匹配站點" ? matchedManager : managerName
                 });
             }
         });
@@ -172,8 +174,14 @@ export const processDeGeExcel = async (file) => {
         // 5. 分類行程
         const categorized = categorizeByManager(events);
 
-        // 6. 匯出專屬報表
-        await exportSingleDeGeExcel(categorized[managerName] || categorized["未匹配站點"], managerName, stationsStr, timeData, periodStr);
+        // 6. 回傳資料與標頭資訊
+        return {
+            categorized,
+            reportTitle: timeData,
+            periodStr,
+            managerName,
+            stationsStr
+        };
 
     } catch (e) {
         console.error("處理 Excel 過程發生錯誤：", e);

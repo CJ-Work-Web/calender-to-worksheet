@@ -56,7 +56,7 @@ const generateManagerSheet = (workbook, templateSheet, managerName, sheetName, d
         const yearMatch = startDateStr?.match(/^(\d{4})/);
         let twYear = "xxx";
         let initMonth = "xx";
-        if (yearMatch) {
+        if (yearMatch && startDateStr.includes('-')) {
             twYear = parseInt(yearMatch[1]) - 1911;
             initMonth = parseInt(startDateStr.split('-')[1]).toString(); // Remove leading zero
         }
@@ -89,13 +89,13 @@ const generateManagerSheet = (workbook, templateSheet, managerName, sheetName, d
     } else {
         let twYear = "xxx", initMonth = "xx";
         const yearMatch = startDateStr?.match(/^(\d{4})/);
-        if (yearMatch) {
+        if (yearMatch && startDateStr.includes('-')) {
             twYear = parseInt(yearMatch[1]) - 1911;
             initMonth = parseInt(startDateStr.split('-')[1]).toString();
         }
         let twEndYear = "xxx", endMonth = "xx", endDay = "xx";
-        const startDay = (startDateStr && startDateStr.split('-')[2]) ? parseInt(startDateStr.split('-')[2]).toString() : "xx";
-        if (endDateStr) {
+        const startDay = (startDateStr && startDateStr.includes('-') && startDateStr.split('-')[2]) ? parseInt(startDateStr.split('-')[2]).toString() : "xx";
+        if (endDateStr && endDateStr.includes('-')) {
             twEndYear = parseInt(endDateStr.split('-')[0]) - 1911;
             endMonth = parseInt(endDateStr.split('-')[1]).toString();
             endDay = parseInt(endDateStr.split('-')[2]).toString();
