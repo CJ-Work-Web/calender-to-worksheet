@@ -63,8 +63,6 @@ function App() {
   const handleMergedExport = async () => {
     setIsProcessing(true)
     try {
-      // 動態引入服務
-      const { mergeCategorizedData } = await import('./services/DataProcessorService');
       const { exportToExcel } = await import('./services/ExcelExportService');
 
       let finalCategorized = {};

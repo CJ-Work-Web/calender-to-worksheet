@@ -134,7 +134,7 @@ export const processDeGeExcel = async (file) => {
                 // 先把重複的句號清掉，避免影響判斷
                 cleanText = cleanText.replace(/[。\.]$/, '');
 
-                if (cleanText.includes("會")) {
+                if (CATEGORY_KEYWORDS.MEETING.some(k => cleanText.includes(k))) {
                     if (!cleanText.includes("無與機關有關重要議題")) {
                         cleanText += "，無與機關有關重要議題。";
                     } else {
@@ -146,6 +146,11 @@ export const processDeGeExcel = async (file) => {
 
                 // 執行特定替換規則：美河市 -> 新店機廠 (以利自動比對)
                 cleanText = cleanText.replace(/美河市/g, "新店機廠");
+
+                // 門牌號碼格式轉換 (順序不可對調)
+                cleanText = cleanText.replace(/(\d+)[Ff]-(\d+)/g, '$1樓之$2');     // XXF-X → XX樓之X
+                cleanText = cleanText.replace(/(\d+)-(\d+)-(\d+)/g, '$1號$2樓之$3'); // XXX-XX-XX → XXX號XX樓之XX
+                cleanText = cleanText.replace(/-/g, '，');                           // 其餘 - → ，
 
                 // 移除重複或連續的不同標點符號 (，。 或 。， 等)，僅保留最後一個
                 // 匹配兩個以上的標點集合，替換為該集合的最後一個字
@@ -184,6 +189,7 @@ export const processDeGeExcel = async (file) => {
             reportTitle: timeData,
             periodStr,
             managerName,
+            stationsList: stationsList.length > 0 ? stationsList : ["無"],
             stationsStr
         };
 

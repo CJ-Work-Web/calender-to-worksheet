@@ -22,24 +22,21 @@ export const STATION_MANAGER_MAPPING = [
     { "station": "中和高中站", "manager": "鄭秋燕" }
 ];
 
+// 預先計算排序後的站點清單（模組載入時執行一次，避免每次呼叫重建）
+const SORTED_MAPPING = [...STATION_MANAGER_MAPPING]
+    .map(item => ({ ...item, coreName: item.station.split('(')[0].replace(/站$/, '') }))
+    .sort((a, b) => b.coreName.length - a.coreName.length);
+
 /**
  * 在標題中尋找對應的站點與主任
  */
 export const findStationAndManager = (title) => {
-    // 為了精準匹配，先處理清冊：提取「核心站名」(去括號、去"站"字)，並依長度降冪排序
-    const sortedMapping = [...STATION_MANAGER_MAPPING]
-        .map(item => ({
-            ...item,
-            coreName: item.station.split('(')[0].replace(/站$/, '')
-        }))
-        .sort((a, b) => b.coreName.length - a.coreName.length);
-
     let matchedStation = "";
     let matchedManager = "未匹配站點";
 
     const cleanTitle = (title || "").replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F]/g, '');
 
-    for (const item of sortedMapping) {
+    for (const item of SORTED_MAPPING) {
         if (cleanTitle.includes(item.coreName)) {
             matchedStation = item.station;
             matchedManager = item.manager;
@@ -56,7 +53,7 @@ export const findStationAndManager = (title) => {
 export const CATEGORY_KEYWORDS = {
     INSPECT: ["巡檢"],
     HANDOVER: ["點交", "公證", "簽約", "起租", "退租", "續租", "續約", "三方移轉", "租賃權移轉"],
-    MEETING: ["例會", "區權會", "區大", "委員會", "管委會", "臨時會", "委員推舉", "起始會議"],
+    MEETING: ["例會", "區權會", "區大", "委員會", "管委會", "臨時會", "委員推舉", "起始會議", "區分所有權人會議", "臨時區分所有權人會議"],
     PAYMENT: ["催收", "貼單"]
 };
 
@@ -83,6 +80,11 @@ export const processEvents = (events) => {
 
         // 全局刪除文字：更新、更換、整組更新
         titleNoUnderscore = titleNoUnderscore.replace(/更新|更換|整組更新/g, "");
+
+        // 門牌號碼格式轉換 (順序不可對調)
+        titleNoUnderscore = titleNoUnderscore.replace(/(\d+)[Ff]-(\d+)/g, '$1樓之$2');     // XXF-X → XX樓之X
+        titleNoUnderscore = titleNoUnderscore.replace(/(\d+)-(\d+)-(\d+)/g, '$1號$2樓之$3'); // XXX-XX-XX → XXX號XX樓之XX
+        titleNoUnderscore = titleNoUnderscore.replace(/-/g, '，');                           // 其餘 - → ，
 
         // 使用全標題判定分類以免套用「現勘」邏輯 (避免底線後的關鍵字被漏掉)
         const isMtg = CATEGORY_KEYWORDS.MEETING.some(k => cleanTitle.includes(k));

@@ -26,9 +26,16 @@ const DeGeDataCleaner = ({ file, setFile, onDataProcessed, excelResult }) => {
         autoProcess();
     }, [file, onDataProcessed]);
 
+    const MAX_FILE_SIZE_MB = 20;
     const handleFileChange = (e) => {
         if (e.target.files && e.target.files.length > 0) {
-            setFile(e.target.files[0]);
+            const selectedFile = e.target.files[0];
+            if (selectedFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+                alert(`檔案大小超過 ${MAX_FILE_SIZE_MB}MB 限制，請重新選擇。`);
+                e.target.value = '';
+                return;
+            }
+            setFile(selectedFile);
             setExportSuccess(false);
         }
     };
@@ -49,7 +56,7 @@ const DeGeDataCleaner = ({ file, setFile, onDataProcessed, excelResult }) => {
             // 優先使用快取的結果 (P2: 避免重複解析)
             const result = excelResult || await processDeGeExcel(file);
             const { exportSingleDeGeExcel } = await import('../services/ExcelExportService');
-            await exportSingleDeGeExcel(result.categorized[result.managerName] || result.categorized["未匹配站點"], result.managerName, result.stationsStr, result.reportTitle, result.periodStr);
+            await exportSingleDeGeExcel(result.categorized[result.managerName] || result.categorized["未匹配站點"], result.managerName, result.stationsList, result.reportTitle, result.periodStr);
 
             setExportSuccess(true);
             setTimeout(() => setExportSuccess(false), 3000);

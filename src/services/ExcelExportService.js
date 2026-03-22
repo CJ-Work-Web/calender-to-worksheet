@@ -1,6 +1,9 @@
 import ExcelJS from 'exceljs';
 import { CATEGORIES } from './DataProcessorService';
 
+// template.xlsx 簽名欄列範圍（若更新範本請同步修改）
+const TEMPLATE_FOOTER = { start: 24, end: 30 };
+
 /**
  * 從指定的來源列複製樣式並套用到底下的合併範圍
  */
@@ -177,9 +180,9 @@ const generateManagerSheet = (workbook, templateSheet, managerName, sheetName, d
     addCategory(CATEGORIES.DISPUTE, []);
     addCategory(CATEGORIES.OTHER_TASK, []);
 
-    // --- 完全複製範本表尾 (Row 24 to 30) ---
+    // --- 完全複製範本表尾 ---
     const footerStartRow = currentRowIdx;
-    for (let i = 24; i <= 30; i++) {
+    for (let i = TEMPLATE_FOOTER.start; i <= TEMPLATE_FOOTER.end; i++) {
         const srcRow = templateSheet.getRow(i);
         const tgtRow = newSheet.addRow([]);
         tgtRow.height = srcRow.height;
@@ -334,7 +337,7 @@ export const exportToExcel = async (categorizedData, title, period, originalMapp
 /**
  * 針對單一主任的「德哥工作日誌整理」匯出為 Excel 檔案
  */
-export const exportSingleDeGeExcel = async (managerData, managerName, stationsStr, timeDataTitle, periodStr) => {
+export const exportSingleDeGeExcel = async (managerData, managerName, stationsList, timeDataTitle, periodStr) => {
     try {
         const response = await fetch('./template.xlsx');
         if (!response.ok) {
@@ -356,12 +359,9 @@ export const exportSingleDeGeExcel = async (managerData, managerName, stationsSt
 
         const sheetName = managerName === "未匹配站點" ? "未匹配站點" : `主任工作內容_${managerName}_${mStr}月`;
 
-        const stationsArray = [stationsStr];
-
-        // 傳遞 customTitle: 如果 timeDataTitle 自帶了「工作日誌整體執行情形說明表」，這裡為了符合格式直接組合
         const customTitle = `${timeDataTitle}份 工作日誌整體執行情形說明表`;
 
-        generateManagerSheet(workbook, templateSheet, managerName, sheetName, managerData, null, null, stationsArray, customTitle, periodStr);
+        generateManagerSheet(workbook, templateSheet, managerName, sheetName, managerData, null, null, stationsList, customTitle, periodStr);
 
         // 刪除所有原來的範本 Sheets 
         originalSheetIds.forEach(id => {
