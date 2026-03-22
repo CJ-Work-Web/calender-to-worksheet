@@ -148,9 +148,10 @@ export const processDeGeExcel = async (file) => {
                 cleanText = cleanText.replace(/美河市/g, "新店機廠");
 
                 // 門牌號碼格式轉換 (順序不可對調)
-                cleanText = cleanText.replace(/(\d+)[Ff]-(\d+)/g, '$1樓之$2');     // XXF-X → XX樓之X
-                cleanText = cleanText.replace(/(\d+)-(\d+)-(\d+)/g, '$1號$2樓之$3'); // XXX-XX-XX → XXX號XX樓之XX
-                cleanText = cleanText.replace(/-/g, '，');                           // 其餘 - → ，
+                cleanText = cleanText.replace(/(\d+)[Ff]-(\d+)/g, '$1樓之$2');          // XXF-X → XX樓之X
+                cleanText = cleanText.replace(/(\d+)-(\d+)-(\d+)/g, '$1號$2樓之$3');    // XXX-XX-XX → XXX號XX樓之XX
+                cleanText = cleanText.replace(/([^-\d])-(\d+)-(\d+)/g, '$1，$2之$3');   // 文字-數字-數字 → 文字，數字之數字
+                cleanText = cleanText.replace(/-/g, '，');                              // 其餘 - → ，
 
                 // 移除重複或連續的不同標點符號 (，。 或 。， 等)，僅保留最後一個
                 // 匹配兩個以上的標點集合，替換為該集合的最後一個字

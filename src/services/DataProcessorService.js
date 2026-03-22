@@ -82,9 +82,10 @@ export const processEvents = (events) => {
         titleNoUnderscore = titleNoUnderscore.replace(/更新|更換|整組更新/g, "");
 
         // 門牌號碼格式轉換 (順序不可對調)
-        titleNoUnderscore = titleNoUnderscore.replace(/(\d+)[Ff]-(\d+)/g, '$1樓之$2');     // XXF-X → XX樓之X
-        titleNoUnderscore = titleNoUnderscore.replace(/(\d+)-(\d+)-(\d+)/g, '$1號$2樓之$3'); // XXX-XX-XX → XXX號XX樓之XX
-        titleNoUnderscore = titleNoUnderscore.replace(/-/g, '，');                           // 其餘 - → ，
+        titleNoUnderscore = titleNoUnderscore.replace(/(\d+)[Ff]-(\d+)/g, '$1樓之$2');          // XXF-X → XX樓之X
+        titleNoUnderscore = titleNoUnderscore.replace(/(\d+)-(\d+)-(\d+)/g, '$1號$2樓之$3');    // XXX-XX-XX → XXX號XX樓之XX
+        titleNoUnderscore = titleNoUnderscore.replace(/([^-\d])-(\d+)-(\d+)/g, '$1，$2之$3');   // 文字-數字-數字 → 文字，數字之數字
+        titleNoUnderscore = titleNoUnderscore.replace(/-/g, '，');                              // 其餘 - → ，
 
         // 使用全標題判定分類以免套用「現勘」邏輯 (避免底線後的關鍵字被漏掉)
         const isMtg = CATEGORY_KEYWORDS.MEETING.some(k => cleanTitle.includes(k));
