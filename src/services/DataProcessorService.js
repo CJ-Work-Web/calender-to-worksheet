@@ -31,20 +31,21 @@ const SORTED_MAPPING = [...STATION_MANAGER_MAPPING]
  * 在標題中尋找對應的站點與主任
  */
 export const findStationAndManager = (title) => {
-    let matchedStation = "";
-    let matchedManager = "未匹配站點";
-
     const cleanTitle = (title || "").replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F]/g, '');
 
+    // 別名替換：讓特定關鍵字能匹配到對應站點的 coreName
+    const titleForMatching = cleanTitle
+        .replace(/臺電大樓/g, '台電大樓')
+        .replace(/(?<!新店)區公所/g, '新店區公所')   // "區公所"、"區公所站" → "新店區公所站(捷22)"
+        .replace(/美河市|住宅區|住辦區/g, '新店機廠'); // → "新店機廠站(捷17.18.19)"
+
     for (const item of SORTED_MAPPING) {
-        if (cleanTitle.includes(item.coreName)) {
-            matchedStation = item.station;
-            matchedManager = item.manager;
-            break;
+        if (titleForMatching.includes(item.coreName)) {
+            return { matchedStation: item.station, matchedManager: item.manager };
         }
     }
 
-    return { matchedStation, matchedManager };
+    return { matchedStation: "", matchedManager: "未匹配站點" };
 };
 
 /**
@@ -103,10 +104,10 @@ export const processEvents = (events) => {
             // 判斷是否為「修繕維護」類別 (即非巡檢、點交、會議、催收)
             const isMaintenance = !isInspect && !isHandover && !isPayment;
             let finalTitle = titleNoUnderscore;
-            if (isMaintenance && !finalTitle.includes("現勘") && !finalTitle.includes("場勘")) {
-                finalTitle = "現勘" + finalTitle;
-            }
-            mergedText = `${dateFormatted}，${finalTitle}。`;
+            // 有匹配站點且為修繕維護類別，才在句末（。之前）補上「現勘」
+            const shouldAddKanKan = isMaintenance && matchedStation !== "" &&
+                !finalTitle.includes("現勘") && !finalTitle.includes("場勘");
+            mergedText = `${dateFormatted}，${finalTitle}${shouldAddKanKan ? '現勘' : ''}。`;
         }
 
         return {
